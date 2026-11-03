@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SpendWise – Login</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="css/style.css" rel="stylesheet"></head>
+<body><main class="container"><div class="auth-wrap">
+  <h1 class="text-center h2 mb-1">💰 SpendWise</h1>
+  <p class="text-center text-muted mb-4">Track spending. Hit your savings goals.</p>
+  <div class="card p-4">
+    <ul class="nav nav-pills nav-fill mb-3" role="tablist">
+      <li class="nav-item"><button class="nav-link active" id="tabLogin" type="button">Login</button></li>
+      <li class="nav-item"><button class="nav-link" id="tabReg" type="button">Register</button></li>
+    </ul>
+    <div id="msg" class="alert d-none" role="alert"></div>
+    <form id="authForm" novalidate>
+      <div class="mb-3 d-none" id="nameRow"><label class="form-label" for="name">Name</label>
+        <input class="form-control" id="name" autocomplete="name"></div>
+      <div class="mb-3"><label class="form-label" for="email">Email</label>
+        <input class="form-control" id="email" type="email" autocomplete="email" required></div>
+      <div class="mb-3"><label class="form-label" for="password">Password</label>
+        <input class="form-control" id="password" type="password" autocomplete="current-password" required>
+        <div class="form-text d-none" id="pwHint">At least 8 characters, including a digit.</div></div>
+      <button class="btn btn-brand w-100" id="submitBtn">Login</button>
+    </form>
+  </div></div></main>
+<script src="js/common.js"></script>
+<script>
+let mode = 'login';
+const $ = id => document.getElementById(id), msg = $('msg');
+function setMode(m) {
+  mode = m;
+  $('tabLogin').classList.toggle('active', m === 'login'); $('tabReg').classList.toggle('active', m === 'register');
+  $('nameRow').classList.toggle('d-none', m === 'login'); $('pwHint').classList.toggle('d-none', m === 'login');
+  $('submitBtn').textContent = m === 'login' ? 'Login' : 'Create account'; msg.classList.add('d-none');
+}
+$('tabLogin').onclick = () => setMode('login'); $('tabReg').onclick = () => setMode('register');
+
+// ---- client-side validation ----
+function validate() {
+  if (mode === 'register' && $('name').value.trim().length < 2) return 'Name must be at least 2 characters.';
+  if (!/^\S+@\S+\.\S+$/.test($('email').value)) return 'Enter a valid email address.';
+  const pw = $('password').value;
+  if (mode === 'register' && (pw.length < 8 || !/\d/.test(pw))) return 'Password needs 8+ characters including a digit.';
+  if (!pw) return 'Enter your password.';
+  return null;
+}
+$('authForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const err = validate(); if (err) return showAlert(msg, err);
+  try {
+    const body = { email: $('email').value, password: $('password').value };
+    if (mode === 'register') body.name = $('name').value;
+    await api(mode === 'login' ? '/api/login' : '/api/register', 'POST', body);
+    location.href = 'dashboard.html';
+  } catch (ex) { showAlert(msg, ex.message); }
+});
+fetch('/api/me').then(r => { if (r.ok) location.href = 'dashboard.html'; });
+</script></body></html>

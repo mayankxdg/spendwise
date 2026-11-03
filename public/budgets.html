@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SpendWise – Budgets</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="css/style.css" rel="stylesheet"></head>
+<body><div id="nav"></div>
+<main class="container py-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0">Monthly Budgets <small class="text-muted fs-6" id="month"></small></h1>
+    <a class="btn btn-outline-secondary btn-sm" href="/api/export.csv">⬇ Export transactions (CSV)</a>
+  </div>
+  <div class="row g-3">
+    <div class="col-lg-4"><div class="card p-3"><h2 class="h5">Set a budget</h2>
+      <div id="msg" class="alert d-none" role="alert"></div>
+      <form id="bForm" novalidate>
+        <div class="mb-2"><label class="form-label" for="category">Category</label><select id="category" class="form-select"></select></div>
+        <div class="mb-3"><label class="form-label" for="limit">Monthly limit (₹)</label><input id="limit" type="number" min="1" class="form-control"></div>
+        <button class="btn btn-brand">Save budget</button>
+      </form></div></div>
+    <div class="col-lg-8"><div class="card p-3"><div id="list"></div>
+      <p class="text-muted d-none" id="empty">No budgets yet. Set one on the left.</p></div></div>
+  </div>
+</main><div id="foot"></div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="js/common.js"></script>
+<script>
+const $ = id => document.getElementById(id), msg = $('msg');
+(async () => {
+  const me = await api('/api/me'); renderLayout('budgets.html', me.name);
+  me.categories.filter(c => c !== 'Salary').forEach(c => $('category').add(new Option(c, c)));
+  load();
+})();
+async function load() {
+  const { month, budgets } = await api('/api/budgets'); $('month').textContent = '(' + month + ')';
+  $('empty').classList.toggle('d-none', budgets.length > 0);
+  $('list').innerHTML = budgets.map(b => {
+    const pct = Math.round(b.spent / b.monthly_limit * 100), over = pct > 100, warn = pct >= 80 && !over;
+    return `<div class="mb-3"><div class="d-flex justify-content-between"><strong>${esc(b.category)}</strong>
+      <span>${fmt(b.spent)} / ${fmt(b.monthly_limit)}
+      <button class="btn btn-sm btn-link text-danger" onclick="del(${b.id})">Remove</button></span></div>
+      <div class="progress" role="progressbar" aria-valuenow="${Math.min(pct,100)}" aria-valuemin="0" aria-valuemax="100">
+      <div class="progress-bar ${over ? 'bg-danger' : warn ? 'bg-warning' : 'bg-success'}" style="width:${Math.min(pct,100)}%">${pct}%</div></div>
+      ${over ? `<small class="text-danger">⚠ Over budget by ${fmt(b.spent - b.monthly_limit)}</small>` : warn ? '<small class="text-warning">Close to your limit</small>' : ''}</div>`;
+  }).join('');
+}
+// ---- client-side validation ----
+$('bForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  if (!$('limit').value || Number($('limit').value) <= 0) return showAlert(msg, 'Enter a limit greater than 0.');
+  try { await api('/api/budgets', 'POST', { category: $('category').value, monthly_limit: $('limit').value });
+    $('bForm').reset(); showAlert(msg, 'Budget saved.', 'success'); load();
+  } catch (ex) { showAlert(msg, ex.message); }
+});
+async function del(id) { await api('/api/budgets/' + id, 'DELETE'); load(); }
+</script></body></html>
